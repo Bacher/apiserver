@@ -1,6 +1,6 @@
 package getInitialData
 
-import "fmt"
+import "apiserver/server/structs"
 
 var Name = "getInitialData"
 
@@ -12,9 +12,6 @@ type Response struct {
 	FuckName string `json:"fuckName"`
 }
 
-func Do(p Params) *Response {
-
-	fmt.Println(p)
-
-	return &Response{p.Name + "-gay"}
+func Do(u *structs.User, p Params) *Response {
+	return &Response{p.Name + "-gay " + u.Name}
 }

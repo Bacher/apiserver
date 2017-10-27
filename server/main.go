@@ -3,88 +3,74 @@ package main
 import (
 	"apiserver/server/api/getInitialData"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"frontserver/dbpool"
+	"frontserver/proto"
+	"github.com/golang/protobuf/proto"
 	"gorpc/rpc"
-	"io/ioutil"
 	"log"
-	"net/http"
 )
 
+var rpcClient *rpc.Client
+
+var invalidParams = errors.New("invalid params")
+
 func main() {
-	client := rpc.NewClient(func(apiName string, body []byte) ([]byte, error) {
+	dbpool.InitDb()
+
+	rpcClient = rpc.NewClient(func(apiName string, body []byte) ([]byte, error) {
 		switch apiName {
 		case "apiCall":
-			log.Println(string(body))
+			var apiCallStruct pb.ApiCall
+			err := proto.Unmarshal(body, &apiCallStruct)
 
-			return []byte(`{"result":"OK"}`), nil
+			if err != nil {
+				return nil, err
+			}
+
+			user, err := getUser(apiCallStruct.UserId)
+
+			if err != nil {
+				return nil, err
+			}
+
+			var objMap []*json.RawMessage
+			err = json.Unmarshal(apiCallStruct.Params, &objMap)
+
+			if err != nil {
+				return nil, err
+			}
+
+			var params getInitialData.Params
+
+			err = json.Unmarshal(*objMap[1], &params)
+
+			if err != nil {
+				return nil, err
+			}
+
+			response := getInitialData.Do(user, params)
+
+			jsonResponse, err := json.Marshal(response)
+
+			if err != nil {
+				return nil, err
+			}
+
+			return jsonResponse, nil
 		}
 
 		log.Printf("Unknown apiMethod for parse %s\n", apiName)
 		return nil, rpc.ApiNotFound
 	})
 
-	err := client.Connect()
+	err := rpcClient.Connect()
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	fmt.Println("Server is started.")
+	log.Println("Server is started.")
 
 	addSigTermHandler()
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	jsonBytes, err := ioutil.ReadAll(r.Body)
-
-	if err != nil {
-		fail(w, 400, "Bad Request")
-		return
-	}
-
-	var objMap []*json.RawMessage
-
-	err = json.Unmarshal(jsonBytes, &objMap)
-
-	if err != nil {
-		fmt.Println("Invalid JSON:", jsonBytes)
-		fail(w, 400, "Bad Request")
-		return
-	}
-
-	fmt.Println(objMap)
-
-	var token string
-	json.Unmarshal(*objMap[0], &token)
-
-	fmt.Printf("token %s\n", token)
-
-	var params getInitialData.Params
-
-	err = json.Unmarshal(*objMap[1], &params)
-
-	if err != nil {
-		fmt.Println("Invalid JSON", err)
-		fail(w, 400, "Bad Request")
-		return
-	}
-
-	response := getInitialData.Do(params)
-
-	jsonResponse, err := json.Marshal(response)
-
-	if err != nil {
-		fmt.Println(err)
-		fail(w, 500, "Internal Server Error")
-		return
-	}
-
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(jsonResponse)
-}
-
-func fail(w http.ResponseWriter, code int, message string) {
-	w.Header().Add("Content-Type", "text/plain")
-	w.WriteHeader(code)
-	w.Write([]byte(message))
 }

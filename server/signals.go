@@ -15,6 +15,8 @@ func addSigTermHandler() {
 	//go func() {
 	<-sigCh
 
+	go rpcClient.Request("disconnect", nil)
+
 	<-time.NewTimer(5 * time.Second).C
 
 	os.Exit(1)
