@@ -26,7 +26,13 @@ var serverName = getServerName()
 func main() {
 	dbpool.InitDb()
 
-	rpcClient = rpc.NewClient(func(apiName string, body []byte) ([]byte, error) {
+	addr := os.Getenv("RPC_ADDR")
+
+	if addr == "" {
+		addr = "localhost:9999"
+	}
+
+	rpcClient = rpc.NewClient(addr, func(apiName string, body []byte) ([]byte, error) {
 		switch apiName {
 		case "apiCall":
 			var apiCallStruct pb.ApiCall
