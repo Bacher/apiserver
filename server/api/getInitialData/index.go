@@ -1,6 +1,10 @@
 package getInitialData
 
-import "apiserver/server/structs"
+import (
+	"apiserver/server/structs"
+	"log"
+	"time"
+)
 
 var Name = "getInitialData"
 
@@ -13,5 +17,7 @@ type Response struct {
 }
 
 func Do(u *structs.User, p Params) *Response {
+	log.Println("api call start")
+	time.Sleep(5 * time.Second)
 	return &Response{p.Name + "-gay " + u.Name}
 }

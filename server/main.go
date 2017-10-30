@@ -9,11 +9,19 @@ import (
 	"github.com/golang/protobuf/proto"
 	"gorpc/rpc"
 	"log"
+	"os"
 )
+
+type Response struct {
+	Response  interface{} `json:"response"`
+	ApiServer string      `json:"apiServer"`
+}
 
 var rpcClient *rpc.Client
 
 var invalidParams = errors.New("invalid params")
+
+var serverName = getServerName()
 
 func main() {
 	dbpool.InitDb()
@@ -51,7 +59,7 @@ func main() {
 
 			response := getInitialData.Do(user, params)
 
-			jsonResponse, err := json.Marshal(response)
+			jsonResponse, err := json.Marshal(&Response{response, serverName})
 
 			if err != nil {
 				return nil, err
@@ -70,7 +78,17 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	log.Println("Server is started.")
+	log.Printf("Server is started [%s].\n", serverName)
 
 	addSigTermHandler()
+}
+
+func getServerName() string {
+	name := os.Getenv("SERVER_NAME")
+
+	if name != "" {
+		return name
+	}
+
+	return "Unknown server"
 }
